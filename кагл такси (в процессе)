@@ -1,0 +1,45 @@
+
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import OneHotEncoder
+
+
+df = pd.read_csv('train.zip', compression='zip', sep = ',')
+df.drop(labels = 'dropoff_datetime', axis = 1, inplace = True)
+df.sort_values(by = 'pickup_datetime', inplace = True)
+train_df, test_df = df[:10 ** 6], df[10 ** 6:]
+
+# np.log1p(train_df.trip_duration).hist(bins = 30) 
+
+train_df['log_trip_duration'] = np.log1p(train_df.trip_duration)
+test_df['log_trip_duration'] = np.log1p(test_df.trip_duration)
+# визуализируем день поездки и кол-во заказов в этот день
+# для начала преобразуем pickup_datetime из строк в числовые значения
+train_df.pickup_datetime = pd.to_datetime(train_df.pickup_datetime)
+date = train_df.pickup_datetime.apply(lambda x: x.date())
+
+# plt.figure(figsize=(23, 5))
+# date_count_plot = sns.countplot(x = date)
+# date_count_plot.set_xticklabels(date_count_plot.get_xticklabels(), rotation = 90)
+
+grouped_train = train_df.groupby(by = date)
+
+# создадим матрицу и целевую переменную с помощью функции для обучения линейной регрессии
+
+def create_features(data_frame):
+    X = pd.concat(
+        [
+        data_frame.pickup_datetime.apply(lambda x: x.timetuple().tm_yday), 
+        data_frame.pickup_datetime.apply(lambda x: x.hour)
+        ], axis = 1, keys = ['day', 'hour'])
+    return X, data_frame.log_trip_duration
+
+X_train, y_train = create_features(train_df)
+X_test, y_test = create_features(test_df)
+
+ohe = OneHotEncoder(sparse = False, categorical_features = [1])
+X_train = ohe.fit_transform(X_train)
+X_test = ohe.transform(X_test)
+X_train
